@@ -14,3 +14,7 @@ def preprocess_image(image):
     # Binarization
     _, binary = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     return binary
+
+def extract_text(image):
+    text = pytesseract.image_to_string(image)
+    return text
