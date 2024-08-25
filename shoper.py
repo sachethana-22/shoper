@@ -30,3 +30,15 @@ def summarize_receipt(text):
     print("Summary:")
     print(summary)
     return summary
+
+def accumulate_sales_data(summaries):
+    sales_data = {}
+    for summary in summaries:
+        for item in summary['Items']:
+            item_name = item.split()[0]
+            item_price = float(item.split()[-1])
+            if item_name in sales_data:
+                sales_data[item_name] += item_price
+            else:
+                sales_data[item_name] = item_price
+    return sales_data
