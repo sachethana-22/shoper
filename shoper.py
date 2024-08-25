@@ -42,3 +42,30 @@ def accumulate_sales_data(summaries):
             else:
                 sales_data[item_name] = item_price
     return sales_data
+
+def visualize_sales(sales_data):
+    items = list(sales_data.keys())
+    prices = list(sales_data.values())
+
+    plt.bar(items, prices, color='blue')
+    plt.xlabel('Items')
+    plt.ylabel('Sales ($)')
+    plt.title('Sales Summary')
+    plt.show()
+
+def main():
+    image_paths = ['receipt1.jpg', 'receipt2.jpg']  # Example image files
+    summaries = []
+
+    for path in image_paths:
+        image = load_image(path)
+        processed_image = preprocess_image(image)
+        text = extract_text(processed_image)
+        summary = summarize_receipt(text)
+        summaries.append(summary)
+
+    sales_data = accumulate_sales_data(summaries)
+    visualize_sales(sales_data)
+
+if _name_ == '_main_':
+    main()
