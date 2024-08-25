@@ -18,3 +18,15 @@ def preprocess_image(image):
 def extract_text(image):
     text = pytesseract.image_to_string(image)
     return text
+
+def summarize_receipt(text):
+    lines = text.split('\n')
+    summary = {'Items': [], 'Total': None}
+    for line in lines:
+        if 'Total' in line:
+            summary['Total'] = line.split()[-1]
+        else:
+            summary['Items'].append(line)
+    print("Summary:")
+    print(summary)
+    return summary
