@@ -42,12 +42,28 @@ def accumulate_sales_data(summaries):
     sales_data = {}
     for summary in summaries:
         for item in summary['Items']:
-            item_name = item.split()[0]
-            item_price = float(item.split()[-1])
-            if item_name in sales_data:
-                sales_data[item_name] += item_price
-            else:
-                sales_data[item_name] = item_price
+            parts = item.split()
+            
+            # Ensure there are at least two parts (item name and price)
+            if len(parts) < 2:
+                continue
+            
+            item_name = " ".join(parts[:-1])  # Item name could be more than one word
+            item_price_str = parts[-1]
+
+            try:
+                # Attempt to convert the last part to a float
+                item_price = float(item_price_str)
+                
+                if item_name in sales_data:
+                    sales_data[item_name] += item_price
+                else:
+                    sales_data[item_name] = item_price
+
+            except ValueError:
+                # If conversion fails, print an error or skip
+                print(f"Skipping line: {item} - Invalid price format")
+
     return sales_data
 
 def visualize_sales(sales_data):
