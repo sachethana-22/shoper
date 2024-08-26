@@ -76,6 +76,26 @@ def visualize_sales(sales_data):
     plt.title('Sales Summary')
     plt.show()
 
+def save_summary_to_text_file(summary, filename="C:/Users/hp/Documents/University/Year 04 Sem 02/CGV/GroupAssignment/FinalCourseWork/summary.txt"):
+    try:
+        # Get the absolute path of the directory where the script is running
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Join the script directory with the filename to ensure it's saved in the correct location
+        file_path = os.path.join(script_dir, filename)
+        
+        # Write the summary to the text file
+        with open(file_path, 'w') as file:
+            for item in summary['Items']:
+                file.write(f"{item}\n")
+            if summary['Total']:
+                file.write(f"\nTotal: {summary['Total']}\n")
+        
+        print(f"Summary saved to {file_path}")
+    
+    except Exception as e:
+        print(f"An error occurred while saving the file: {e}")
+
 def main():
     image_paths = ['receipt1.jpg', 'receipt2.jpg']  # Example image files
     summaries = []
