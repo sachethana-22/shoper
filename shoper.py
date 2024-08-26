@@ -97,18 +97,21 @@ def save_summary_to_text_file(summary, filename="C:/Users/hp/Documents/Universit
         print(f"An error occurred while saving the file: {e}")
 
 def main():
-    image_paths = ['receipt1.jpg', 'receipt2.jpg']  # Example image files
+    image_paths = ['images/Recept1.png', 'images/Recept2.png', 'images/Recept3.png', 'images/Recept4.png']  # Example image files
     summaries = []
+
+    # Clear the summary file before starting (optional)
+    open('summary.txt', 'w').close()
 
     for path in image_paths:
         image = load_image(path)
         processed_image = preprocess_image(image)
         text = extract_text(processed_image)
-        summary = summarize_receipt(text)
+        summary = summarize_receipt(text, output_file='summary.txt')
         summaries.append(summary)
 
     sales_data = accumulate_sales_data(summaries)
     visualize_sales(sales_data)
 
-if _name_ == '_main_':
+if __name__ == '__main__':
     main()
