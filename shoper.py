@@ -1,7 +1,9 @@
 import cv2
+import numpy as np
 from matplotlib import pyplot as plt
 import pytesseract
 import os
+from PIL import Image, ImageEnhance, ImageFilter
 
 def load_image(filepath):
     image = cv2.imread(filepath)
@@ -9,14 +11,38 @@ def load_image(filepath):
 
 
 def preprocess_image(image):
+    # Resize image to a larger size for better OCR detection
+    height, width = image.shape[:2]
+    image = cv2.resize(image, (width * 2, height * 2), interpolation=cv2.INTER_LINEAR)
+    
+    # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
-    # Binarization
-    _, binary = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
-    return binary
+    # Denoise the image
+    denoised = cv2.fastNlMeansDenoising(gray, None, 30, 7, 21)
+    
+    # Sharpen the image
+    sharpen_kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+    sharpened = cv2.filter2D(denoised, -1, sharpen_kernel)
+    
+    return sharpened
 
 def extract_text(image):
-    text = pytesseract.image_to_string(image)
+    pil_img = Image.fromarray(image)
+    
+    # Enhance the image quality
+    enhancer = ImageEnhance.Contrast(pil_img)
+    pil_img = enhancer.enhance(2)
+    
+    enhancer = ImageEnhance.Sharpness(pil_img)
+    pil_img = enhancer.enhance(2)
+    
+    # Convert the enhanced image back to OpenCV format
+    enhanced_image = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    
+    # Use Tesseract to extract text
+    custom_config = r'--oem 3 --psm 6'
+    text = pytesseract.image_to_string(enhanced_image, config=custom_config)
     return text
 
 def summarize_receipt(text, output_file='summary.txt'):
