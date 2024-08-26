@@ -19,14 +19,21 @@ def extract_text(image):
     text = pytesseract.image_to_string(image)
     return text
 
-def summarize_receipt(text):
+def summarize_receipt(text, output_file='summary.txt'):
     lines = text.split('\n')
     summary = {'Items': [], 'Total': None}
-    for line in lines:
-        if 'Total' in line:
-            summary['Total'] = line.split()[-1]
-        else:
-            summary['Items'].append(line)
+    
+    with open(output_file, 'a') as file:  # Open the file in append mode
+        for line in lines:
+            if 'Total' in line:
+                summary['Total'] = line.split()[-1]
+                file.write(f"Total: {summary['Total']}\n")
+            else:
+                summary['Items'].append(line)
+                file.write(f"Item: {line}\n")
+        
+        file.write("\n")  # Add a newline after each receipt summary
+    
     print("Summary:")
     print(summary)
     return summary
