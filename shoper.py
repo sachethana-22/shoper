@@ -1,106 +1,157 @@
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
+from tkinter import Tk, filedialog
 import pytesseract
 import os
 from PIL import Image, ImageEnhance, ImageFilter
 
-def load_image(filepath):
-    image = cv2.imread(filepath)
-    return image
+#path to tesseract
+pytesseract.pytesseract.tesseract_cmd = r'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
 
-def preprocess_image(image):
-    # Resize image to a larger size for better OCR detection
-    height, width = image.shape[:2]
-    image = cv2.resize(image, (width * 2, height * 2), interpolation=cv2.INTER_LINEAR)
+def display_image(title, image):
+    """Display an image with a title."""
+    plt.figure(figsize=(10, 10))
+    plt.title(title)
+    if len(image.shape) == 3:
+        # Color image
+        plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    else:
+        # Grayscale image
+        plt.imshow(image, cmap='gray')
+    plt.axis('off')
+    plt.show()
+
+def resize_image(image, scale_percent, interpolation_method):
+    #Resize the image 
+    width = int(image.shape[1] * scale_percent / 100)
+    height = int(image.shape[0] * scale_percent / 100)
+    dim = (width, height)
     
+    resized_image = cv2.resize(image, dim, interpolation=interpolation_method)
+    return resized_image
+
+def preprocess_image(image_paths):
+    image = cv2.imread(image_paths)
+
+    if image is None:
+        print("Error: Image not found.")
+        return None
+
+    # Display original image
+    display_image("Original Image", image)
+
+    # interpolation methods
+    interpolation_methods = {
+        'Nearest': cv2.INTER_NEAREST,
+        'Linear': cv2.INTER_LINEAR,
+        'Cubic': cv2.INTER_CUBIC,
+        'Lanczos4': cv2.INTER_LANCZOS4
+    }
+
+    scale_percent = 200  # Scale image to 200% of original size
+    
+    for name, method in interpolation_methods.items():
+        resized_image = resize_image(image, scale_percent, method)
+        print(f"Image resized using {name} interpolation.")
+        display_image(f"Resized Image ({name})", resized_image)
+
     # Convert to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    # Denoise the image
-    denoised = cv2.fastNlMeansDenoising(gray, None, 30, 7, 21)
-    
-    # Sharpen the image
-    sharpen_kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
-    sharpened = cv2.filter2D(denoised, -1, sharpen_kernel)
-    
-    return sharpened
+    gray = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
+    print("Converted to grayscale.")
+    display_image("Grayscale Image", gray)
 
-def extract_text(image):
-    pil_img = Image.fromarray(image)
-    
-    # Enhance the image quality
-    enhancer = ImageEnhance.Contrast(pil_img)
-    pil_img = enhancer.enhance(2)
-    
-    enhancer = ImageEnhance.Sharpness(pil_img)
-    pil_img = enhancer.enhance(2)
-    
-    # Convert the enhanced image back to OpenCV format
-    enhanced_image = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-    
-    # Use Tesseract to extract text
-    custom_config = r'--oem 3 --psm 6'
-    text = pytesseract.image_to_string(enhanced_image, config=custom_config)
-    return text
+    # Apply Gaussian
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    print("Applied Gaussian blur to reduce noise.")
+    display_image("Blurred Image", blurred)
+
+    # Apply adaptive thresholding
+    adaptive_thresh = cv2.adaptiveThreshold(
+        blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    print("Applied adaptive Gaussian thresholding.")
+    display_image("Adaptive Thresholding", adaptive_thresh)
+
+    # morphological transformations to improve text visibility
+    kernel = np.ones((3, 3), np.uint8)
+    morph = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_CLOSE, kernel)
+    print("Applied morphological transformations.")
+    display_image("Morphological Transformations", morph)
+
+    # erosion and dilation to enhance text
+    eroded = cv2.erode(morph, kernel, iterations=1)
+    dilated = cv2.dilate(eroded, kernel, iterations=1)
+    print("Applied erosion and dilation.")
+    display_image("Eroded Image", eroded)
+    display_image("Dilated Image", dilated)
+
+    # Extract text using Tesseract 
+    custom_config = r'--oem 3 --psm 6'  
+    extracted_text = pytesseract.image_to_string(dilated, config=custom_config)
+    print("Extracted text using OCR.")
+
+    return extracted_text
+
+def format_number(text):
+    try:
+        # Replace commas with periods and remove spaces
+        text = text.replace(',', '.').replace(' ', '')
+        # Convert text to a float
+        number = float(text)
+        # Format with two decimal places
+        formatted_number = f"{number:.2f}"
+        return formatted_number
+    except ValueError:
+        return text.strip()
 
 def summarize_receipt(text, output_file='summary.txt'):
     lines = text.split('\n')
-    summary = {'Items': [], 'Total': None}
+    summary = {'Header': [],'Items': [], 'Footer': []}
     
-    with open(output_file, 'a') as file:  # Open the file in append mode
-        for line in lines:
-            if 'Total' in line:
-                summary['Total'] = line.split()[-1]
-                file.write(f"Total: {summary['Total']}\n")
-            else:
-                summary['Items'].append(line)
-                file.write(f"Item: {line}\n")
-        
-        file.write("\n")  # Add a newline after each receipt summary
+    item_section = False
+
+    for line in lines:
+        if "Cashier" in line or "Bill" in line:
+            summary["Header"].append(line.strip())
+        elif "Sub Total" in line or "Cash" in line or "Change" in line:
+            parts = line.split()
+            formatted_parts = [format_number(part) if part.replace('.', '', 1).isdigit() else part for part in parts]
+            summary["Footer"].append(" ".join(formatted_parts))
+        elif line.strip() and not item_section:
+            summary["Header"].append(line.strip())
+        elif line.startswith("#"):
+            item_section = True
+            summary["Items"].append(line.strip())
+        elif item_section:
+            parts = line.split()
+            formatted_parts = []
+            for part in parts:
+                if part.replace('.', ',', 1).isdigit():
+                    if '.' in part:
+                        formatted_parts.append(format_number(part))  # Price should have two decimal places
+                    else:
+                        formatted_parts.append(f"{int(part):.0f}")  # Quantity should not have decimals
+                else:
+                    formatted_parts.append(part)
+            summary["Items"].append(" ".join(formatted_parts))
     
-    print("Summary:")
-    print(summary)
     return summary
 
-def accumulate_sales_data(summaries):
-    sales_data = {}
-    for summary in summaries:
-        for item in summary['Items']:
-            parts = item.split()
-            
-            # Ensure there are at least two parts (item name and price)
-            if len(parts) < 2:
-                continue
-            
-            item_name = " ".join(parts[:-1])  # Item name could be more than one word
-            item_price_str = parts[-1]
+def accumulate_sales_data(summary):
+    print("\n" + "=" * 35)
+    for Header in summary["Header"]:
+        print(f"{Header:^35}")
+    
+    print("\n" + "-" * 35)
+    for Items in summary["Items"]:
+        print(f"{Items}")
+    
+    print("-" * 35)
+    for Footer in summary["Footer"]:
+        print(f"{Footer:<35}")
+    print("=" * 35 + "\n")
 
-            try:
-                # Attempt to convert the last part to a float
-                item_price = float(item_price_str)
-                
-                if item_name in sales_data:
-                    sales_data[item_name] += item_price
-                else:
-                    sales_data[item_name] = item_price
-
-            except ValueError:
-                # If conversion fails, print an error or skip
-                print(f"Skipping line: {item} - Invalid price format")
-
-    return sales_data
-
-def visualize_sales(sales_data):
-    items = list(sales_data.keys())
-    prices = list(sales_data.values())
-
-    plt.bar(items, prices, color='blue')
-    plt.xlabel('Items')
-    plt.ylabel('Sales ($)')
-    plt.title('Sales Summary')
-    plt.show()
 
 def save_summary_to_text_file(summary, filename="C:/Users/hp/Documents/University/Year 04 Sem 02/CGV/GroupAssignment/FinalCourseWork/summary.txt"):
     try:
@@ -123,21 +174,19 @@ def save_summary_to_text_file(summary, filename="C:/Users/hp/Documents/Universit
         print(f"An error occurred while saving the file: {e}")
 
 def main():
-    image_paths = ['images/Recept1.png', 'images/Recept2.png', 'images/Recept3.png', 'images/Recept4.png']  # Example image files
-    summaries = []
+    image_paths = ['images/Recept1.png']  #image files
+    summary = []
 
-    # Clear the summary file before starting (optional)
+    # Clear the summary file before starting
     open('summary.txt', 'w').close()
 
-    for path in image_paths:
-        image = load_image(path)
-        processed_image = preprocess_image(image)
-        text = extract_text(processed_image)
-        summary = summarize_receipt(text, output_file='summary.txt')
-        summaries.append(summary)
-
-    sales_data = accumulate_sales_data(summaries)
-    visualize_sales(sales_data)
+    for image_path in image_paths:
+        receipt_details = preprocess_image(image_path)
+        if receipt_details:
+            summary_details = summarize_receipt(receipt_details)
+            accumulate_sales_data(summary_details)
+            summary = summarize_receipt(summary_details, output_file='summary.txt')
+            summary.append(summary)
 
 if __name__ == '__main__':
     main()
