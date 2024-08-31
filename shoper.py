@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
-from tkinter import Tk, filedialog
 import pytesseract
 import os
 from PIL import Image, ImageEnhance, ImageFilter
@@ -11,7 +10,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:/Program Files/Tesseract-OCR/tessera
 
 
 def display_image(title, image):
-    """Display an image with a title."""
+    #Display an image with a title.
     plt.figure(figsize=(10, 10))
     plt.title(title)
     if len(image.shape) == 3:
@@ -54,42 +53,35 @@ def preprocess_image(image_paths):
     
     for name, method in interpolation_methods.items():
         resized_image = resize_image(image, scale_percent, method)
-        print(f"Image resized using {name} interpolation.")
-        display_image(f"Resized Image ({name})", resized_image)
+        display_image(f"Resized Image-Using {name} interpolation.", resized_image)
 
     # Convert to grayscale
     gray = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
-    print("Converted to grayscale.")
-    display_image("Grayscale Image", gray)
+    display_image("Converted to grayscale.", gray)
 
     # Apply Gaussian
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    print("Applied Gaussian blur to reduce noise.")
-    display_image("Blurred Image", blurred)
+    display_image("Blurred Image-Applied Gaussian blur to reduce noise", blurred)
 
     # Apply adaptive thresholding
     adaptive_thresh = cv2.adaptiveThreshold(
         blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    print("Applied adaptive Gaussian thresholding.")
-    display_image("Adaptive Thresholding", adaptive_thresh)
+    display_image("Adaptive Thresholding-Applied adaptive Gaussian thresholding", adaptive_thresh)
 
     # morphological transformations to improve text visibility
     kernel = np.ones((3, 3), np.uint8)
     morph = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_CLOSE, kernel)
-    print("Applied morphological transformations.")
-    display_image("Morphological Transformations", morph)
+    display_image("Morphological Transformations-Applied morphological transformations", morph)
 
     # erosion and dilation to enhance text
     eroded = cv2.erode(morph, kernel, iterations=1)
     dilated = cv2.dilate(eroded, kernel, iterations=1)
-    print("Applied erosion and dilation.")
-    display_image("Eroded Image", eroded)
-    display_image("Dilated Image", dilated)
+    display_image("Eroded Image-Applied erosion", eroded)
+    display_image("Dilated Image-Applied dilation", dilated)
 
     # Extract text using Tesseract 
     custom_config = r'--oem 3 --psm 6'  
     extracted_text = pytesseract.image_to_string(dilated, config=custom_config)
-    print("Extracted text using OCR.")
 
     return extracted_text
 
@@ -155,20 +147,18 @@ def accumulate_sales_data(summary):
 
 def save_summary_to_text_file(summary, filename="C:/Users/hp/Documents/University/Year 04 Sem 02/CGV/GroupAssignment/FinalCourseWork/summary.txt"):
     try:
-        # Get the absolute path of the directory where the script is running
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Join the script directory with the filename to ensure it's saved in the correct location
-        file_path = os.path.join(script_dir, filename)
+        file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
         
         # Write the summary to the text file
         with open(file_path, 'w') as file:
-            for item in summary['Items']:
-                file.write(f"{item}\n")
-            if summary['Total']:
-                file.write(f"\nTotal: {summary['Total']}\n")
-        
-        print(f"Summary saved to {file_path}")
+            for Header in summary['Header']:
+                file.write(f"{Header}\n")
+            file.write("\nItems:\n")
+            for Item in summary['Items']:
+                file.write(f"{Item}\n")
+            file.write("\nFooter:\n")
+            for Footer in summary['Footer']:
+                file.write(f"{Footer}\n")
     
     except Exception as e:
         print(f"An error occurred while saving the file: {e}")
@@ -185,8 +175,11 @@ def main():
         if receipt_details:
             summary_details = summarize_receipt(receipt_details)
             accumulate_sales_data(summary_details)
-            summary = summarize_receipt(summary_details, output_file='summary.txt')
-            summary.append(summary)
+            summary.append(summary_details)
+
+    if summary:
+        save_summary_to_text_file(summary[0])  # Save the first summary as a sample
+
 
 if __name__ == '__main__':
     main()
