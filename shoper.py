@@ -149,16 +149,24 @@ def save_summary_to_text_file(summary, filename="C:/Users/hp/Documents/Universit
     try:
         file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
         
+        #get the text to the center of the text file
+        line_width = 80
+        def center_text(text,width):
+            return text.center(width)
+        
         # Write the summary to the text file
         with open(file_path, 'w') as file:
-            for Header in summary['Header']:
-                file.write(f"{Header}\n")
-            file.write("\nItems:\n")
-            for Item in summary['Items']:
-                file.write(f"{Item}\n")
-            file.write("\nFooter:\n")
-            for Footer in summary['Footer']:
-                file.write(f"{Footer}\n")
+            if 'Header' in summary:
+                for Header in summary['Header']:
+                    file.write(f"{center_text(Header, line_width)}\n")
+          
+            if 'Items' in summary:
+                for Items in summary['Items']:
+                    file.write(f"{center_text(Items, line_width)}\n")
+             
+            if 'Footer' in summary:
+                for Footer in summary['Footer']:
+                    file.write(f"{center_text(Footer, line_width)}\n")
     
     except Exception as e:
         print(f"An error occurred while saving the file: {e}")
@@ -175,6 +183,7 @@ def main():
         if receipt_details:
             summary_details = summarize_receipt(receipt_details)
             accumulate_sales_data(summary_details)
+            save_summary_to_text_file(summary_details, filename='summary.txt')
             summary.append(summary_details)
 
     if summary:
